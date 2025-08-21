@@ -1,12 +1,27 @@
 // app/chat/page.tsx
-"use client"
+"use client";
 import { useState } from 'react';
-import ModelSelector from '../components/ModelSelector'; 
+import ModelSelector from '../components/ModelSelector';
 import ChatWindow from '../components/ChatWindow';
 import MessageInput from '../components/MessageInput';
 import { v4 as uuidv4 } from 'uuid';
 
-type Model = 'Granite' | 'Mistral' | 'LLAMA';
+// Define Model type for backend-compatible names
+type Model = 'granite' | 'mixtral' | 'llama3';
+
+// Map backend model names to display names
+const modelDisplayMap: Record<Model, string> = {
+  granite: 'Granite',
+  mixtral: 'Mistral',
+  llama3: 'LLAMA',
+};
+
+// Map display names back to backend model names
+const modelValueMap: Record<string, Model> = {
+  Granite: 'granite',
+  Mistral: 'mixtral',
+  LLAMA: 'llama3',
+};
 
 export interface Message {
   id: string;
@@ -16,43 +31,61 @@ export interface Message {
 }
 
 const ChatPage: React.FC = () => {
-  const [selectedModel, setSelectedModel] = useState<Model>('Granite');
+  const [selectedModel, setSelectedModel] = useState<Model>('granite');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [messageIdCounter, setMessageIdCounter] = useState(0);
 
-  const handleModelChange = (model: Model) => {
-    setSelectedModel(model);
+  const handleModelChange = (displayModel: string) => {
+    const model = modelValueMap[displayModel];
+    if (model) {
+      setSelectedModel(model);
+    }
   };
 
   const handleSendMessage = async (text: string) => {
     const userMessage: Message = {
-      id: `msg-${uuidv4()}`,
+      id: uuidv4(),
       text,
       sender: 'user',
       model: selectedModel,
     };
     setMessages((prev) => [...prev, userMessage]);
-    // setMessageIdCounter((prev) => prev + 1); 
     setIsLoading(true);
 
-    // Simulate API call to AI backend (replace with actual API integration)
     try {
-      // Example: const response = await fetch('/api/chat', { method: 'POST', body: JSON.stringify({ message: text, model: selectedModel }) });
-      // const data = await response.json();
-      // const aiText = data.response;
+      const response = await fetch('http://localhost:5000/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: text,
+          model: selectedModel,
+        }),
+      });
 
-      // Simulated response
-      const aiText = `AI response from ${selectedModel}: ${text}`;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get response from server');
+      }
+
       const aiMessage: Message = {
-        id: `msg-${uuidv4()}`,
-        text: aiText,
+        id: uuidv4(),
+        text: data.response || 'No response content',
         sender: 'ai',
         model: selectedModel,
       };
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       console.error('Error fetching AI response:', error);
+      const errorMessage: Message = {
+        id: uuidv4(),
+        text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        sender: 'ai',
+        model: selectedModel,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -67,7 +100,10 @@ const ChatPage: React.FC = () => {
       </header>
       <main className="w-full max-w-4xl flex flex-col md:flex-row gap-4">
         <aside className="md:w-1/4 bg-gray-800/50 backdrop-blur-md rounded-xl p-4 shadow-lg">
-          <ModelSelector selectedModel={selectedModel} onModelChange={handleModelChange} />
+          <ModelSelector
+            selectedModel={modelDisplayMap[selectedModel]}
+            onModelChange={handleModelChange}
+          />
         </aside>
         <section className="flex-1 bg-gray-800/50 backdrop-blur-md rounded-xl p-4 shadow-lg flex flex-col">
           <ChatWindow messages={messages} isLoading={isLoading} />
