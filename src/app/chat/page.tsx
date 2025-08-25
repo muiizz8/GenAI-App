@@ -1,114 +1,82 @@
-// app/chat/page.tsx
-"use client";
-import { useState } from 'react';
-import ModelSelector from '../components/ModelSelector';
-import ChatWindow from '../components/ChatWindow';
-import MessageInput from '../components/MessageInput';
-import { v4 as uuidv4 } from 'uuid';
+'use client';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Sidebar from '../components/Sidebar'; 
 
-// Define Model type for backend-compatible names
-type Model = 'granite' | 'mixtral' | 'llama3';
-
-// Map backend model names to display names
-const modelDisplayMap: Record<Model, string> = {
-  granite: 'Granite',
-  mixtral: 'Mistral',
-  llama3: 'LLAMA',
-};
-
-// Map display names back to backend model names
-const modelValueMap: Record<string, Model> = {
-  Granite: 'granite',
-  Mistral: 'mixtral',
-  LLAMA: 'llama3',
-};
-
-export interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'ai';
-  model?: Model;
+interface Chat {
+  _id: string;
+  title: string;
+  createdAt: Date;
 }
 
 const ChatPage: React.FC = () => {
-  const [selectedModel, setSelectedModel] = useState<Model>('granite');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [chats, setChats] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-  const handleModelChange = (displayModel: string) => {
-    const model = modelValueMap[displayModel];
-    if (model) {
-      setSelectedModel(model);
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
     }
-  };
 
-  const handleSendMessage = async (text: string) => {
-    const userMessage: Message = {
-      id: uuidv4(),
-      text,
-      sender: 'user',
-      model: selectedModel,
+    const fetchChats = async () => {
+      try {
+        const res = await fetch('/api/chat/history', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setChats(data);
+          // Redirect to the latest chat if available
+          if (data.length > 0) {
+            router.push(`/chat/${data[0]._id}`);
+          }
+        } else {
+          console.error('Failed to fetch chat history');
+        }
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+      }
     };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
+    fetchChats();
+  }, [router]);
 
+  const handleCreateChat = async () => {
+    setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/generate', {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/chat/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          message: text,
-          model: selectedModel,
-        }),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to get response from server');
+      if (res.ok) {
+        const { chatId } = await res.json();
+        router.push(`/chat/${chatId}`);
+      } else {
+        console.error('Failed to create chat');
       }
-
-      const aiMessage: Message = {
-        id: uuidv4(),
-        text: data.response || 'No response content',
-        sender: 'ai',
-        model: selectedModel,
-      };
-      setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
-      console.error('Error fetching AI response:', error);
-      const errorMessage: Message = {
-        id: uuidv4(),
-        text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        sender: 'ai',
-        model: selectedModel,
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      console.error('Error creating chat:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-black text-white flex flex-col items-center justify-center p-4">
-      <header className="w-full max-w-4xl mb-8">
-        <h1 className="text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500">
-          AI Chat Interface
-        </h1>
-      </header>
-      <main className="w-full max-w-4xl flex flex-col md:flex-row gap-4">
-        <aside className="md:w-1/4 bg-gray-800/50 backdrop-blur-md rounded-xl p-4 shadow-lg">
-          <ModelSelector
-            selectedModel={modelDisplayMap[selectedModel]}
-            onModelChange={handleModelChange}
-          />
-        </aside>
-        <section className="flex-1 bg-gray-800/50 backdrop-blur-md rounded-xl p-4 shadow-lg flex flex-col">
-          <ChatWindow messages={messages} isLoading={isLoading} />
-          <MessageInput onSend={handleSendMessage} disabled={isLoading} />
-        </section>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-black text-white flex p-4">
+      <Sidebar chats={chats} onCreateChat={handleCreateChat} isLoading={isLoading} />
+      <main className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500">
+            Welcome to the Chat Interface
+          </h1>
+          <p className="text-gray-300">Select a chat from the sidebar or create a new one to start chatting.</p>
+        </div>
       </main>
     </div>
   );

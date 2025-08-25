@@ -1,10 +1,10 @@
 import Image from "next/image";
-import ChatPage from "./chat/page";
+import ChatIdPage from "./chat/[chatId]/page";
 
 export default function Home() {
   return (
     <div>
-      <ChatPage/>
+      <ChatIdPage/>
     </div>
   );
 }

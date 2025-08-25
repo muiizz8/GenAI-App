@@ -1,5 +1,4 @@
-// components/ChatWindow.tsx
-import { Message } from '@/app/chat/page';
+import { Message, modelDisplayMap, Model } from '@/app/lib/models';
 
 interface ChatWindowProps {
   messages: Message[];
@@ -11,14 +10,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
     <div className="flex-1 overflow-y-auto p-4 space-y-4 mb-4">
       {messages.map((msg) => (
         <div
-          key={msg.id}
+          key={msg._id}
           className={`max-w-xl p-3 rounded-lg ${
             msg.sender === 'user'
               ? 'bg-indigo-600/70 ml-auto text-right'
               : 'bg-purple-600/70 mr-auto text-left'
           }`}
         >
-          <p className="font-semibold">{msg.sender === 'user' ? 'You' : `${msg.model} AI`}</p>
+          <p className="font-semibold">
+            {msg.sender === 'user' ? 'You' : `${modelDisplayMap[(msg.model as Model) ?? 'granite']} AI`}
+          </p>
           <p>{msg.text}</p>
         </div>
       ))}

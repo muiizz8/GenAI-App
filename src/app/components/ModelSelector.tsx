@@ -1,12 +1,9 @@
-// components/ModelSelector.tsx
-import { useState } from 'react';
+import { models } from "@/app/lib/models";
 
-export interface ModelSelectorProps {
-  selectedModel: string; // Use string for display names
+interface ModelSelectorProps {
+  selectedModel: string;
   onModelChange: (model: string) => void;
 }
-
-const models = ['Granite', 'Mistral', 'LLAMA'];
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelChange }) => {
   return (
