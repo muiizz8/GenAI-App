@@ -1,0 +1,6 @@
+flask
+flask-cors
+langchain-ibm
+langchain
+pydantic
+ibm-watsonx-ai
